@@ -32,6 +32,7 @@ public class KafkaAppender<E> extends KafkaAppenderConfig<E> {
     private final FailedDeliveryCallback<E> failedDeliveryCallback = new FailedDeliveryCallback<E>() {
         @Override
         public void onFailedDelivery(E evt, Throwable throwable) {
+            // aai只是用来处理Kafka发送失败的日志
             aai.appendLoopOnAppenders(evt);
         }
     };
@@ -44,10 +45,13 @@ public class KafkaAppender<E> extends KafkaAppenderConfig<E> {
 
     @Override
     public void doAppend(E e) {
+        // 首先处理queue中堆积的日志
         ensureDeferredAppends();
+        // 如果是Kafka自己的消息，就先放入queue等待下一次处理，防止Kafka运行中的日志处理形成环路
         if (e instanceof ILoggingEvent && ((ILoggingEvent)e).getLoggerName().startsWith(KAFKA_LOGGER_PREFIX)) {
             deferAppend(e);
         } else {
+            // 传给父类（其实还是自己处理）
             super.doAppend(e);
         }
     }
